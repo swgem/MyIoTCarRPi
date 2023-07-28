@@ -5,6 +5,8 @@ import sys
 import datetime
 import signal
 from gpiozero import Motor
+from gpiozero import Servo
+from gpiozero.pins.pigpio import PiGPIOFactory
 from time import sleep
 
 #---------------------------------------------------------------------------------------------------
@@ -17,6 +19,7 @@ car_motor1 = None
 car_motor2 = None
 car_direction = None
 car_speed = None
+car_servo_steering = None
 
 #---------------------------------------------------------------------------------------------------
 # Functions
@@ -42,9 +45,16 @@ def update_car_movement():
 		else:
 			car_motor1.backward(car_speed)
 			car_motor2.backward(car_speed)
+	car_servo_steering.value = car_steering_angle
 
 def assert_speed(speed):
 	if speed >= 0.0 and speed <= 1.0:
+		return True
+	else:
+		return False
+	
+def assert_steering_angle(steering_angle):
+	if steering_angle >= -1.0 and steering_angle <= 1.0:
 		return True
 	else:
 		return False
@@ -52,6 +62,8 @@ def assert_speed(speed):
 #---------------------------------------------------------------------------------------------------
 # Code initialization
 #---------------------------------------------------------------------------------------------------
+
+print("Process started. Press CTRL+C to exit")
 
 signal.signal(signal.SIGINT, SignalHandler_SIGINT)
 
@@ -63,23 +75,31 @@ except FileNotFoundError:
 firebase = pyrebase.initialize_app(config)
 car_motor1 = Motor(6, 13)
 car_motor2 = Motor(19, 26)
+car_servo_steering_pin_factory = PiGPIOFactory()
+car_servo_steering = Servo(18, pin_factory=car_servo_steering_pin_factory)
 
 database = firebase.database()
 car_direction = database.child("forward").get().val()
 car_speed = database.child("speed").get().val()
+car_steering_angle = database.child("steeringAngle").get().val()
+
 if not assert_speed(car_speed):
 	car_speed = 0.0
 	print("Invalid car speed from database. Speed set to zero")
+if not assert_steering_angle(car_steering_angle):
+	car_steering_angle = 0.0
+	print("Invalid car steering angle from database. Steering angle set to zero")
+print("--------------------")
 print("Car initial parameters:")
 if car_direction:
 	print("Direction: forward")
 else:
 	print("Direction: backward")
 print("Speed: ", str(car_speed))
+print("Steering angle: ", str(car_speed))
+print("--------------------")
 
 update_car_movement()
-
-print("Process started. Press CTRL+C to exit")
 
 #---------------------------------------------------------------------------------------------------
 # Main loop
@@ -111,6 +131,15 @@ while Sentry:
 		else:
 			print("Invalid car speed from database. Speed was not updated")
 
+	new_steering_angle = database.child("steeringAngle").get().val()
+	if new_steering_angle != car_steering_angle:
+		if assert_steering_angle(new_steering_angle):
+			car_steering_angle = new_steering_angle
+			print("Steering angle changed to ", str(car_steering_angle))
+			update_car_movement()
+		else:
+			print("Invalid car steering angle from database. Steering angle set to zero")
+
 	timestamp_end = datetime.datetime.now()
 	if (timestamp_end - timestamp_ini).microseconds < 300000:
 		sleep(0.3)
@@ -118,3 +147,4 @@ while Sentry:
 # Finishing execution
 car_motor1.close()
 car_motor2.close()
+car_servo_steering.close()
