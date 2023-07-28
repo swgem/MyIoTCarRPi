@@ -32,12 +32,16 @@ def update_car_movement():
 	global car_motor2
 	global car_direction
 	global car_speed
-	if car_direction:
-		car_motor1.forward(car_speed)
-		car_motor2.forward(car_speed)
+	if car_speed == 0:
+		car_motor1.stop()
+		car_motor2.stop()
 	else:
-		car_motor1.backward(car_speed)
-		car_motor2.backward(car_speed)
+		if car_direction:
+			car_motor1.forward(car_speed)
+			car_motor2.forward(car_speed)
+		else:
+			car_motor1.backward(car_speed)
+			car_motor2.backward(car_speed)
 
 def assert_speed(speed):
 	if speed >= 0.0 and speed <= 1.0:
@@ -99,7 +103,10 @@ while Sentry:
 	if new_speed != car_speed:
 		if assert_speed(new_speed):
 			car_speed = new_speed
-			print("Speed changed to ", str(car_speed))
+			if car_speed == 0.0:
+				print("Car stopped")
+			else:
+				print("Speed changed to ", str(car_speed))
 			update_car_movement()
 		else:
 			print("Invalid car speed from database. Speed was not updated")
