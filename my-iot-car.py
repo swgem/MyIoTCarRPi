@@ -45,7 +45,7 @@ def update_car_movement():
 		else:
 			car_motor1.backward(car_speed)
 			car_motor2.backward(car_speed)
-	car_servo_steering.value = car_steering_angle
+	car_servo_steering.value = (-1) * car_steering_angle
 
 def assert_speed(speed):
 	if speed >= 0.0 and speed <= 1.0:
@@ -67,10 +67,12 @@ print("Process started. Press CTRL+C to exit")
 
 signal.signal(signal.SIGINT, SignalHandler_SIGINT)
 
+sleep(1.0)
+
 try:
-	exec(open("private-firebase-config.py").read())
+	exec(open("/etc/my-iot-car-pvt-firebase-cfg.py").read())
 except FileNotFoundError:
-	print("Error: File 'private-firebase-config.py' not found")
+	print("Error: File '/etc/my-iot-car-pvt-firebase-cfg.py' not found")
 	sys.exit(-1)
 firebase = pyrebase.initialize_app(config)
 car_motor1 = Motor(6, 13)
