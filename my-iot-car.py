@@ -81,9 +81,9 @@ car_servo_steering_pin_factory = PiGPIOFactory()
 car_servo_steering = Servo(18, pin_factory=car_servo_steering_pin_factory)
 
 database = firebase.database()
-car_direction = database.child("forward").get().val()
-car_speed = database.child("speed").get().val()
-car_steering_angle = database.child("steeringAngle").get().val()
+car_direction = database.child("status").child("forward").get().val()
+car_speed = database.child("status").child("speed").get().val()
+car_steering_angle = database.child("status").child("steeringAngle").get().val()
 
 if not assert_speed(car_speed):
 	car_speed = 0.0
@@ -112,7 +112,7 @@ while Sentry:
 	
 	database = firebase.database()
 
-	new_direction = database.child("forward").get().val()
+	new_direction = database.child("status").child("forward").get().val()
 	if new_direction != car_direction:
 		car_direction = new_direction
 		if car_direction:
@@ -121,7 +121,7 @@ while Sentry:
 			print("Direction changed to backward")
 		update_car_movement()
 
-	new_speed = database.child("speed").get().val()
+	new_speed = database.child("status").child("speed").get().val()
 	if new_speed != car_speed:
 		if assert_speed(new_speed):
 			car_speed = new_speed
@@ -133,7 +133,7 @@ while Sentry:
 		else:
 			print("Invalid car speed from database. Speed was not updated")
 
-	new_steering_angle = database.child("steeringAngle").get().val()
+	new_steering_angle = database.child("status").child("steeringAngle").get().val()
 	if new_steering_angle != car_steering_angle:
 		if assert_steering_angle(new_steering_angle):
 			car_steering_angle = new_steering_angle
