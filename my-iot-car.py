@@ -20,6 +20,7 @@ car_motor2 = None
 car_direction = None
 car_speed = None
 car_servo_steering = None
+car_ldr = None
 
 #---------------------------------------------------------------------------------------------------
 # Functions
@@ -74,11 +75,21 @@ try:
 except FileNotFoundError:
 	print("Error: File '/etc/my-iot-car-pvt-firebase-cfg.py' not found")
 	sys.exit(-1)
+
+try:
+	exec(open("/usr/local/bin/adc-0832-lib.py").read())
+except FileNotFoundError:
+	print("Error: File '/usr/local/bin/adc-0832-lib.py' not found")
+	sys.exit(-1)
+
 firebase = pyrebase.initialize_app(config)
 car_motor1 = Motor(6, 13)
 car_motor2 = Motor(19, 26)
 car_servo_steering_pin_factory = PiGPIOFactory()
 car_servo_steering = Servo(18, pin_factory=car_servo_steering_pin_factory)
+
+set_adc_pins(4, 17, 22, 27)
+car_ldr = read_analog()
 
 database = firebase.database()
 car_direction = database.child("status").child("forward").get().val()
@@ -111,6 +122,9 @@ while Sentry:
 	timestamp_ini = datetime.datetime.now()
 	
 	database = firebase.database()
+
+	car_ldr = round(read_analog(), 2)
+	database.child("status").update({"ldr": car_ldr})
 
 	new_direction = database.child("status").child("forward").get().val()
 	if new_direction != car_direction:
