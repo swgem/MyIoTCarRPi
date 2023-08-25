@@ -6,6 +6,7 @@ import datetime
 import signal
 from gpiozero import Motor
 from gpiozero import Servo
+from gpiozero import LED
 from gpiozero.pins.pigpio import PiGPIOFactory
 from time import sleep
 
@@ -21,6 +22,8 @@ car_direction = None
 car_speed = None
 car_servo_steering = None
 car_ldr = None
+car_ldr_threshold = None
+car_led = None
 
 #---------------------------------------------------------------------------------------------------
 # Functions
@@ -90,8 +93,10 @@ car_servo_steering = Servo(18, pin_factory=car_servo_steering_pin_factory)
 
 set_adc_pins(4, 17, 22, 27)
 car_ldr = read_analog()
+car_led = LED(23)
 
 database = firebase.database()
+car_ldr_threshold = database.child("config").child("ldrThreshold").get().val()
 car_direction = database.child("status").child("forward").get().val()
 car_speed = database.child("status").child("speed").get().val()
 car_steering_angle = database.child("status").child("steeringAngle").get().val()
@@ -124,6 +129,17 @@ while Sentry:
 	database = firebase.database()
 
 	car_ldr = round(read_analog(), 2)
+	car_ldr_threshold = database.child("config").child("ldrThreshold").get().val()
+	new_car_led = 1 if car_ldr > car_ldr_threshold else 0
+	if new_car_led != car_led.value:
+		if new_car_led == 1:
+			car_led.on()
+			database.child("status").update({"led": True})
+			print("Car LED turned ON")
+		else:
+			car_led.off()
+			database.child("status").update({"led": False})
+			print("Car LED turned OFF")
 	database.child("status").update({"ldr": car_ldr})
 
 	new_direction = database.child("status").child("forward").get().val()
