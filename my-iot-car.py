@@ -180,3 +180,5 @@ while Sentry:
 car_motor1.close()
 car_motor2.close()
 car_servo_steering.close()
+clear_adc_pins()
+car_led.close()
