@@ -24,6 +24,7 @@ car_servo_steering = None
 car_ldr = None
 car_ldr_threshold = None
 car_led = None
+car_auto_led = None
 
 #---------------------------------------------------------------------------------------------------
 # Functions
@@ -96,6 +97,7 @@ car_ldr = read_analog()
 car_led = LED(23)
 
 database = firebase.database()
+car_auto_led = database.child("config").child("autoLed").get().val()
 car_ldr_threshold = database.child("config").child("ldrThreshold").get().val()
 car_direction = database.child("status").child("forward").get().val()
 car_speed = database.child("status").child("speed").get().val()
@@ -115,6 +117,11 @@ else:
 	print("Direction: backward")
 print("Speed: ", str(car_speed))
 print("Steering angle: ", str(car_speed))
+print("LDR threshold: ", str(car_ldr_threshold))
+if car_auto_led:
+	print("LED is set to change automatically with LDR")
+else:
+	print("LED is set to change manually")
 print("--------------------")
 
 update_car_movement()
@@ -128,19 +135,39 @@ while Sentry:
 	
 	database = firebase.database()
 
-	car_ldr = round(read_analog(), 2)
-	car_ldr_threshold = database.child("config").child("ldrThreshold").get().val()
-	new_car_led = 1 if car_ldr > car_ldr_threshold else 0
-	if new_car_led != car_led.value:
-		if new_car_led == 1:
-			car_led.on()
-			database.child("status").update({"led": True})
-			print("Car LED turned ON")
+	new_car_auto_led = database.child("config").child("autoLed").get().val()
+	if new_car_auto_led != car_auto_led:
+		car_auto_led = new_car_auto_led
+		if car_auto_led:
+			print("LED is set to change automatically with LDR")
 		else:
-			car_led.off()
-			database.child("status").update({"led": False})
-			print("Car LED turned OFF")
+			print("LED is set to change manually")
+	new_car_ldr_threshold = database.child("config").child("ldrThreshold").get().val()
+	if new_car_ldr_threshold != car_ldr_threshold:
+		car_ldr_threshold = new_car_ldr_threshold
+		print("Car LDR threshold changed to ", str(car_ldr_threshold))
+	car_ldr = round(read_analog(), 2)
 	database.child("status").update({"ldr": car_ldr})
+	if car_auto_led:
+		new_car_led = 1 if car_ldr > car_ldr_threshold else 0
+		if new_car_led != car_led.value:
+			if new_car_led == 1:
+				car_led.on()
+				database.child("status").update({"led": True})
+				print("Car LED turned ON")
+			else:
+				car_led.off()
+				database.child("status").update({"led": False})
+				print("Car LED turned OFF")
+	else:
+		new_car_led = 1 if database.child("status").child("led").get().val() else 0
+		if new_car_led != car_led.value:
+			if new_car_led == 1:
+				car_led.on()
+				print("Car LED turned ON")
+			else:
+				car_led.off()
+				print("Car LED turned OFF")
 
 	new_direction = database.child("status").child("forward").get().val()
 	if new_direction != car_direction:
