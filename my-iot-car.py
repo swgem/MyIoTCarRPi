@@ -4,6 +4,7 @@ import pyrebase
 import sys
 import datetime
 import signal
+import yaml
 from gpiozero import Motor
 from gpiozero import Servo
 from gpiozero import LED
@@ -86,15 +87,33 @@ except FileNotFoundError:
 	print("Error: File '/usr/local/bin/adc-0832-lib.py' not found")
 	sys.exit(-1)
 
-firebase = pyrebase.initialize_app(config)
-car_motor1 = Motor(6, 13)
-car_motor2 = Motor(19, 26)
-car_servo_steering_pin_factory = PiGPIOFactory()
-car_servo_steering = Servo(18, pin_factory=car_servo_steering_pin_factory)
+try:
+	with open("/etc/my-iot-car-pin-map.yaml", "r") as file:
+		pin_map = yaml.safe_load(file)
+except FileNotFoundError:
+	print("Error: File '/etc/my-iot-car-pin-map.yaml' not found")
+	sys.exit(-1)
 
-set_adc_pins(4, 17, 22, 27)
+car_motor1_pin1 = pin_map['car_motor1_pin1']
+car_motor1_pin2 = pin_map['car_motor1_pin2']
+car_motor2_pin1 = pin_map['car_motor2_pin1']
+car_motor2_pin2 = pin_map['car_motor2_pin2']
+car_servo_steering_pin = pin_map['car_servo_steering_pin']
+car_ldr_cs_pin = pin_map['car_ldr_cs_pin']
+car_ldr_clk_pin = pin_map['car_ldr_clk_pin']
+car_ldr_ctl_pin = pin_map['car_ldr_ctl_pin']
+car_ldr_sig_pin = pin_map['car_ldr_sig_pin']
+car_led_pin = pin_map['car_led_pin']
+
+firebase = pyrebase.initialize_app(config)
+car_motor1 = Motor(car_motor1_pin1, car_motor1_pin2)
+car_motor2 = Motor(car_motor2_pin1, car_motor2_pin2)
+car_servo_steering_pin_factory = PiGPIOFactory()
+car_servo_steering = Servo(car_servo_steering_pin, pin_factory=car_servo_steering_pin_factory)
+
+set_adc_pins(car_ldr_cs_pin, car_ldr_clk_pin, car_ldr_ctl_pin, car_ldr_sig_pin)
 car_ldr = read_analog()
-car_led = LED(23)
+car_led = LED(car_led_pin)
 
 database = firebase.database()
 car_auto_led = database.child("config").child("autoLed").get().val()

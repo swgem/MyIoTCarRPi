@@ -1,0 +1,14 @@
+car_motor1_pin1: 6
+car_motor1_pin2: 13
+
+car_motor2_pin1: 19
+car_motor2_pin2: 26
+
+car_servo_steering_pin: 18
+
+car_ldr_cs_pin: 4
+car_ldr_clk_pin: 17
+car_ldr_ctl_pin: 22
+car_ldr_sig_pin: 27
+
+car_led_pin: 23
