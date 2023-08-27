@@ -76,15 +76,10 @@ signal.signal(signal.SIGINT, SignalHandler_SIGINT)
 sleep(1.0)
 
 try:
-	exec(open("/etc/my-iot-car-pvt-firebase-cfg.py").read())
+	with open("/etc/my-iot-car-pvt-firebase-cfg.yaml", "r") as file:
+		firebase_cfg = yaml.safe_load(file)
 except FileNotFoundError:
-	print("Error: File '/etc/my-iot-car-pvt-firebase-cfg.py' not found")
-	sys.exit(-1)
-
-try:
-	exec(open("/usr/local/bin/adc-0832-lib.py").read())
-except FileNotFoundError:
-	print("Error: File '/usr/local/bin/adc-0832-lib.py' not found")
+	print("Error: File '/etc/my-iot-car-pvt-firebase-cfg.yaml' not found")
 	sys.exit(-1)
 
 try:
@@ -93,6 +88,17 @@ try:
 except FileNotFoundError:
 	print("Error: File '/etc/my-iot-car-pin-map.yaml' not found")
 	sys.exit(-1)
+
+try:
+	exec(open("/usr/local/bin/adc-0832-lib.py").read())
+except FileNotFoundError:
+	print("Error: File '/usr/local/bin/adc-0832-lib.py' not found")
+	sys.exit(-1)
+
+api_key = firebase_cfg['api_key']
+auth_domain = firebase_cfg['auth_domain']
+database_URL = firebase_cfg['database_URL']
+storage_bucket = firebase_cfg['storage_bucket']
 
 car_motor1_pin1 = pin_map['car_motor1_pin1']
 car_motor1_pin2 = pin_map['car_motor1_pin2']
@@ -105,6 +111,12 @@ car_ldr_ctl_pin = pin_map['car_ldr_ctl_pin']
 car_ldr_sig_pin = pin_map['car_ldr_sig_pin']
 car_led_pin = pin_map['car_led_pin']
 
+config = {
+	"apiKey": api_key,
+	"authDomain": auth_domain,
+	"databaseURL": database_URL,
+	"storageBucket": storage_bucket
+}
 firebase = pyrebase.initialize_app(config)
 car_motor1 = Motor(car_motor1_pin1, car_motor1_pin2)
 car_motor2 = Motor(car_motor2_pin1, car_motor2_pin2)
