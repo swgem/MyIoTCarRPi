@@ -207,7 +207,10 @@ car_servo_steering_pin_factory = PiGPIOFactory()
 car_servo_steering = Servo(car_servo_steering_pin, pin_factory=car_servo_steering_pin_factory)
 
 set_adc_pins(car_ldr_cs_pin, car_ldr_clk_pin, car_ldr_ctl_pin, car_ldr_sig_pin)
-car_ldr = read_analog()
+try:
+	car_ldr = read_analog()
+except:
+	print("Invalid LDR analog reading")
 car_led = LED(car_led_pin)
 
 database = firebase.database()
@@ -248,7 +251,10 @@ while Sentry:
 
 	read_firebase_car_config()
 
-	car_ldr = round(read_analog(), 2)
+	try:
+		car_ldr = round(read_analog(), 2)
+	except:
+		print("Invalid LDR analog reading")
 	database.child("status").update({"ldr": car_ldr})
 	if car_auto_led:
 		new_car_led = 1 if car_ldr > car_ldr_threshold else 0
