@@ -18,6 +18,7 @@ from time import sleep
 Sentry = True
 
 car_cfg_auto_led = None
+car_cfg_auto_led_hysteresis = None
 car_cfg_ldr_threshold = None
 car_cfg_motor_left_right_pin_inverted = None
 car_cfg_motor_left_direction_pin_inverted = None
@@ -45,6 +46,7 @@ def SignalHandler_SIGINT(SignalNumber,Frame):
 
 def download_firebase_car_config():
 	global car_cfg_auto_led
+	global car_cfg_auto_led_hysteresis
 	global car_cfg_ldr_threshold
 	global car_cfg_motor_left_right_pin_inverted
 	global car_cfg_motor_left_direction_pin_inverted
@@ -58,6 +60,11 @@ def download_firebase_car_config():
 			print("CONFIG: LED is set to change automatically with LDR")
 		else:
 			print("CONFIG: LED is set to change manually")
+
+	new_car_cfg_auto_led_hysteresis = database.child("config").child("autoLedHysteresis").get().val()
+	if new_car_cfg_auto_led_hysteresis != car_cfg_auto_led_hysteresis:
+		car_cfg_auto_led_hysteresis = new_car_cfg_auto_led_hysteresis
+		print("CONFIG: Car LDR automatic change hysteresis changed to ", str(car_cfg_auto_led_hysteresis))
 
 	new_car_cfg_ldr_threshold = database.child("config").child("ldrThreshold").get().val()
 	if new_car_cfg_ldr_threshold != car_cfg_ldr_threshold:
@@ -110,12 +117,16 @@ def read_car_ldr():
 
 def update_car_led():
 	global car_cfg_auto_led
+	global car_cfg_auto_led_hysteresis
 	global car_cfg_ldr_threshold
 	global car_dev_led
 	global car_ldr
 
 	if car_cfg_auto_led:
-		new_car_led = 1 if car_ldr > car_cfg_ldr_threshold else 0
+		new_car_led = 1 if (car_ldr > car_cfg_ldr_threshold or \
+							(car_dev_led.value == 1 and \
+								car_ldr > (car_cfg_ldr_threshold - car_cfg_auto_led_hysteresis))) \
+						else 0
 		if new_car_led != car_dev_led.value:
 			if new_car_led == 1:
 				car_dev_led.on()
