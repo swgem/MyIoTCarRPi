@@ -24,13 +24,15 @@ car_cfg_motor_left_direction_pin_inverted = None
 car_cfg_motor_right_direction_pin_inverted = None
 car_cfg_servo_pin_inverted = None
 
-car_motor1 = None
-car_motor2 = None
+car_dev_motor1 = None
+car_dev_motor2 = None
+car_dev_servo_steering = None
+car_dev_led = None
+
 car_direction = None
 car_speed = None
-car_servo_steering = None
+car_steering_angle = None
 car_ldr = None
-car_led = None
 
 #---------------------------------------------------------------------------------------------------
 # Functions
@@ -41,7 +43,7 @@ def SignalHandler_SIGINT(SignalNumber,Frame):
 	global Sentry
 	Sentry = False
 
-def read_firebase_car_config():
+def download_firebase_car_config():
 	global car_cfg_auto_led
 	global car_cfg_ldr_threshold
 	global car_cfg_motor_left_right_pin_inverted
@@ -97,20 +99,91 @@ def read_firebase_car_config():
 		else:
 			print("CONFIG: Car servo direction pins are not inverted")
 
+def read_car_ldr():
+	global car_ldr
+
+	try:
+		car_ldr = round(read_analog(), 2)
+	except:
+		print("Invalid LDR analog reading")
+	database.child("status").update({"ldr": car_ldr})
+
+def update_car_led():
+	global car_cfg_auto_led
+	global car_cfg_ldr_threshold
+	global car_dev_led
+	global car_ldr
+
+	if car_cfg_auto_led:
+		new_car_led = 1 if car_ldr > car_cfg_ldr_threshold else 0
+		if new_car_led != car_dev_led.value:
+			if new_car_led == 1:
+				car_dev_led.on()
+				database.child("status").update({"led": True})
+				print("Car LED turned ON")
+			else:
+				car_dev_led.off()
+				database.child("status").update({"led": False})
+				print("Car LED turned OFF")
+	else:
+		new_car_led = 1 if database.child("status").child("led").get().val() else 0
+		if new_car_led != car_dev_led.value:
+			if new_car_led == 1:
+				car_dev_led.on()
+				print("Car LED turned ON")
+			else:
+				car_dev_led.off()
+				print("Car LED turned OFF")
+
+def download_car_direction():
+	global car_direction
+	new_direction = database.child("status").child("forward").get().val()
+	if new_direction != car_direction:
+		car_direction = new_direction
+		if car_direction:
+			print("Direction changed to forward")
+		else:
+			print("Direction changed to backward")
+
+def download_car_speed():
+	global car_speed
+	new_speed = database.child("status").child("speed").get().val()
+	if new_speed != car_speed:
+		if assert_speed(new_speed):
+			car_speed = new_speed
+			if car_speed == 0.0:
+				print("Car stopped")
+			else:
+				print("Speed changed to ", str(car_speed))
+		else:
+			print("Invalid car speed from database. Speed was not updated")
+
+def download_car_steering_angle():
+	global car_steering_angle
+	new_steering_angle = database.child("status").child("steeringAngle").get().val()
+	if new_steering_angle != car_steering_angle:
+		if assert_steering_angle(new_steering_angle):
+			car_steering_angle = new_steering_angle
+			print("Steering angle changed to ", str(car_steering_angle))
+			update_car_movement()
+		else:
+			print("Invalid car steering angle from database. Steering angle set to zero")
+
 def update_car_movement():
-	global car_cfg_motor_right_direction_pin_inverted
+	global car_cfg_motor_left_right_pin_inverted
 	global car_cfg_motor_left_direction_pin_inverted
 	global car_cfg_motor_right_direction_pin_inverted
 	global car_cfg_servo_pin_inverted
-	global car_motor1
-	global car_motor2
+	global car_dev_motor1
+	global car_dev_motor2
+	global car_dev_servo_steering
 	global car_direction
 	global car_speed
 
-	car_motor_left = car_motor1 if not car_cfg_motor_right_direction_pin_inverted \
-						else car_motor2
-	car_motor_right = car_motor2 if not car_cfg_motor_right_direction_pin_inverted \
-						else car_motor1
+	car_motor_left = car_dev_motor1 if not car_cfg_motor_left_right_pin_inverted \
+						else car_dev_motor2
+	car_motor_right = car_dev_motor2 if not car_cfg_motor_left_right_pin_inverted \
+						else car_dev_motor1
 
 	car_motor_left_hw_forward = car_motor_left.forward if \
 									not car_cfg_motor_left_direction_pin_inverted \
@@ -136,7 +209,7 @@ def update_car_movement():
 		else: # Go left
 			car_motor_left_hw_backward(car_speed)
 			car_motor_right_hw_backward(car_speed)
-	car_servo_steering.value = car_steering_angle if not car_cfg_servo_pin_inverted \
+	car_dev_servo_steering.value = car_steering_angle if not car_cfg_servo_pin_inverted \
 								else (-1) * car_steering_angle
 
 def assert_speed(speed):
@@ -183,16 +256,16 @@ auth_domain = firebase_cfg['auth_domain']
 database_URL = firebase_cfg['database_URL']
 storage_bucket = firebase_cfg['storage_bucket']
 
-car_motor1_pin1 = pin_map['car_motor1_pin1']
-car_motor1_pin2 = pin_map['car_motor1_pin2']
-car_motor2_pin1 = pin_map['car_motor2_pin1']
-car_motor2_pin2 = pin_map['car_motor2_pin2']
-car_servo_steering_pin = pin_map['car_servo_steering_pin']
-car_ldr_cs_pin = pin_map['car_ldr_cs_pin']
-car_ldr_clk_pin = pin_map['car_ldr_clk_pin']
-car_ldr_ctl_pin = pin_map['car_ldr_ctl_pin']
-car_ldr_sig_pin = pin_map['car_ldr_sig_pin']
-car_led_pin = pin_map['car_led_pin']
+car_dev_motor1_pin1 = pin_map['car_motor1_pin1']
+car_dev_motor1_pin2 = pin_map['car_motor1_pin2']
+car_dev_motor2_pin1 = pin_map['car_motor2_pin1']
+car_dev_motor2_pin2 = pin_map['car_motor2_pin2']
+car_dev_servo_steering_pin = pin_map['car_servo_steering_pin']
+car_dev_ldr_cs_pin = pin_map['car_ldr_cs_pin']
+car_dev_ldr_clk_pin = pin_map['car_ldr_clk_pin']
+car_dev_ldr_ctl_pin = pin_map['car_ldr_ctl_pin']
+car_dev_ldr_sig_pin = pin_map['car_ldr_sig_pin']
+car_dev_led_pin = pin_map['car_led_pin']
 
 config = {
 	"apiKey": api_key,
@@ -201,41 +274,28 @@ config = {
 	"storageBucket": storage_bucket
 }
 firebase = pyrebase.initialize_app(config)
-car_motor1 = Motor(car_motor1_pin1, car_motor1_pin2)
-car_motor2 = Motor(car_motor2_pin1, car_motor2_pin2)
-car_servo_steering_pin_factory = PiGPIOFactory()
-car_servo_steering = Servo(car_servo_steering_pin, pin_factory=car_servo_steering_pin_factory)
+car_dev_motor1 = Motor(car_dev_motor1_pin1, car_dev_motor1_pin2)
+car_dev_motor2 = Motor(car_dev_motor2_pin1, car_dev_motor2_pin2)
+car_dev_servo_steering_pin_factory = PiGPIOFactory()
+car_dev_servo_steering = Servo(car_dev_servo_steering_pin, \
+							   pin_factory=car_dev_servo_steering_pin_factory)
 
-set_adc_pins(car_ldr_cs_pin, car_ldr_clk_pin, car_ldr_ctl_pin, car_ldr_sig_pin)
+set_adc_pins(car_dev_ldr_cs_pin, car_dev_ldr_clk_pin, car_dev_ldr_ctl_pin, car_dev_ldr_sig_pin)
+
 try:
 	car_ldr = read_analog()
 except:
 	print("Invalid LDR analog reading")
-car_led = LED(car_led_pin)
+car_dev_led = LED(car_dev_led_pin)
 
 database = firebase.database()
-car_auto_led = database.child("config").child("autoLed").get().val()
-car_ldr_threshold = database.child("config").child("ldrThreshold").get().val()
-car_direction = database.child("status").child("forward").get().val()
-car_speed = database.child("status").child("speed").get().val()
-car_steering_angle = database.child("status").child("steeringAngle").get().val()
 
-read_firebase_car_config()
-
-if not assert_speed(car_speed):
-	car_speed = 0.0
-	print("Invalid car speed from database. Speed set to zero")
-if not assert_steering_angle(car_steering_angle):
-	car_steering_angle = 0.0
-	print("Invalid car steering angle from database. Steering angle set to zero")
 print("--------------------")
-print("Car initial parameters:")
-if car_direction:
-	print("Direction: forward")
-else:
-	print("Direction: backward")
-print("Speed: ", str(car_speed))
-print("Steering angle: ", str(car_speed))
+download_firebase_car_config()
+print("--------------------")
+download_car_direction()
+download_car_speed()
+download_car_steering_angle()
 print("--------------------")
 
 update_car_movement()
@@ -243,77 +303,28 @@ update_car_movement()
 #---------------------------------------------------------------------------------------------------
 # Main loop
 #---------------------------------------------------------------------------------------------------
-
+''
 while Sentry:
 	timestamp_ini = datetime.datetime.now()
 
 	database = firebase.database()
 
-	read_firebase_car_config()
+	download_firebase_car_config()
+	read_car_ldr()
+	download_car_direction()
+	download_car_speed()
+	download_car_steering_angle()
 
-	try:
-		car_ldr = round(read_analog(), 2)
-	except:
-		print("Invalid LDR analog reading")
-	database.child("status").update({"ldr": car_ldr})
-	if car_auto_led:
-		new_car_led = 1 if car_ldr > car_ldr_threshold else 0
-		if new_car_led != car_led.value:
-			if new_car_led == 1:
-				car_led.on()
-				database.child("status").update({"led": True})
-				print("Car LED turned ON")
-			else:
-				car_led.off()
-				database.child("status").update({"led": False})
-				print("Car LED turned OFF")
-	else:
-		new_car_led = 1 if database.child("status").child("led").get().val() else 0
-		if new_car_led != car_led.value:
-			if new_car_led == 1:
-				car_led.on()
-				print("Car LED turned ON")
-			else:
-				car_led.off()
-				print("Car LED turned OFF")
-
-	new_direction = database.child("status").child("forward").get().val()
-	if new_direction != car_direction:
-		car_direction = new_direction
-		if car_direction:
-			print("Direction changed to forward")
-		else:
-			print("Direction changed to backward")
-		update_car_movement()
-
-	new_speed = database.child("status").child("speed").get().val()
-	if new_speed != car_speed:
-		if assert_speed(new_speed):
-			car_speed = new_speed
-			if car_speed == 0.0:
-				print("Car stopped")
-			else:
-				print("Speed changed to ", str(car_speed))
-			update_car_movement()
-		else:
-			print("Invalid car speed from database. Speed was not updated")
-
-	new_steering_angle = database.child("status").child("steeringAngle").get().val()
-	if new_steering_angle != car_steering_angle:
-		if assert_steering_angle(new_steering_angle):
-			car_steering_angle = new_steering_angle
-			print("Steering angle changed to ", str(car_steering_angle))
-			update_car_movement()
-		else:
-			print("Invalid car steering angle from database. Steering angle set to zero")
+	update_car_led()
+	update_car_movement()
 
 	timestamp_end = datetime.datetime.now()
 	if (timestamp_end - timestamp_ini).microseconds < 300000:
 		sleep(0.3)
 
 # Finishing execution
-car_motor1.close()
-car_motor2.close()
-car_servo_steering.close()
+car_dev_motor1.close()
+car_dev_motor2.close()
+car_dev_servo_steering.close()
+car_dev_led.close()
 clear_adc_pins()
-car_led.close()
