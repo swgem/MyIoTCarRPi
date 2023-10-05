@@ -12,6 +12,12 @@ from gpiozero.pins.pigpio import PiGPIOFactory
 from time import sleep
 
 #---------------------------------------------------------------------------------------------------
+# Macros
+#---------------------------------------------------------------------------------------------------
+
+CALIBRATION_LAST_STEP = 5.0
+
+#---------------------------------------------------------------------------------------------------
 # Global variables
 #---------------------------------------------------------------------------------------------------
 
@@ -24,6 +30,8 @@ car_cfg_motor_left_right_pin_inverted = None
 car_cfg_motor_left_direction_pin_inverted = None
 car_cfg_motor_right_direction_pin_inverted = None
 car_cfg_servo_pin_inverted = None
+
+car_calibration_step = None
 
 car_dev_motor1 = None
 car_dev_motor2 = None
@@ -146,6 +154,19 @@ def update_car_led():
 				car_dev_led.off()
 				print("Car LED turned OFF")
 
+def download_car_calibration_step():
+	global car_calibration_step
+	new_car_calibration_step = database.child("status").child("calibrationStep").get().val()
+	if new_car_calibration_step != car_calibration_step:
+		if asset_calibration_step(new_car_calibration_step):
+			car_calibration_step = new_car_calibration_step
+			if car_calibration_step == 0.0:
+				print("Calibration step set to 0. Running on regular mode")
+			else:
+				print("Calibration step set to ", str(car_calibration_step))
+		else:
+			print("Invalid calibration step from database. Calibration step was not updated")
+
 def download_car_direction():
 	global car_direction
 	new_direction = database.child("status").child("forward").get().val()
@@ -222,6 +243,12 @@ def update_car_movement():
 			car_motor_right_hw_backward(car_speed)
 	car_dev_servo_steering.value = car_steering_angle if not car_cfg_servo_pin_inverted \
 								else (-1) * car_steering_angle
+
+def asset_calibration_step(calibration_step):
+	if calibration_step >= 0.0 and calibration_step <= CALIBRATION_LAST_STEP:
+		return True
+	else:
+		return False
 
 def assert_speed(speed):
 	if speed >= 0.0 and speed <= 1.0:
@@ -304,6 +331,7 @@ database = firebase.database()
 print("--------------------")
 download_firebase_car_config()
 print("--------------------")
+download_car_calibration_step()
 download_car_direction()
 download_car_speed()
 download_car_steering_angle()
@@ -314,7 +342,7 @@ update_car_movement()
 #---------------------------------------------------------------------------------------------------
 # Main loop
 #---------------------------------------------------------------------------------------------------
-''
+
 while Sentry:
 	timestamp_ini = datetime.datetime.now()
 
@@ -325,6 +353,8 @@ while Sentry:
 	download_car_direction()
 	download_car_speed()
 	download_car_steering_angle()
+
+	download_car_calibration_step()
 
 	update_car_led()
 	update_car_movement()
