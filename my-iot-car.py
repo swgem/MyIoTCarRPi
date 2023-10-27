@@ -197,11 +197,25 @@ def download_car_steering_angle():
 		if assert_steering_angle(new_steering_angle):
 			car_steering_angle = new_steering_angle
 			print("Steering angle changed to ", str(car_steering_angle))
-			update_car_movement()
 		else:
 			print("Invalid car steering angle from database. Steering angle set to zero")
 
 def update_car_movement():
+	global car_calibration_step
+	if car_calibration_step == 0:
+			update_car_movement_step_0()
+	elif car_calibration_step == 1:
+			update_car_movement_step_1()
+	elif car_calibration_step == 2:
+			update_car_movement_step_2()
+	elif car_calibration_step == 3:
+			update_car_movement_step_3()
+	elif car_calibration_step == 4:
+			update_car_movement_step_4()
+	elif car_calibration_step == 5:
+			update_car_movement_step_5()
+
+def update_car_movement_step_0():
 	global car_cfg_motor_left_right_pin_inverted
 	global car_cfg_motor_left_direction_pin_inverted
 	global car_cfg_motor_right_direction_pin_inverted
@@ -243,6 +257,93 @@ def update_car_movement():
 			car_motor_right_hw_backward(car_speed)
 	car_dev_servo_steering.value = car_steering_angle if not car_cfg_servo_pin_inverted \
 								else (-1) * car_steering_angle
+
+def update_car_movement_step_1():
+	global car_cfg_motor_left_right_pin_inverted
+	global car_cfg_servo_pin_inverted
+	global car_dev_motor1
+	global car_dev_motor2
+	global car_dev_servo_steering
+
+	car_motor_left = car_dev_motor1 if not car_cfg_motor_left_right_pin_inverted \
+						else car_dev_motor2
+	car_motor_right = car_dev_motor2 if not car_cfg_motor_left_right_pin_inverted \
+						else car_dev_motor1
+
+	car_dev_servo_steering.value = 0
+
+	car_motor_left.forward(1.0)
+	car_motor_right.stop()
+
+def update_car_movement_step_2():
+	global car_cfg_motor_left_right_pin_inverted
+	global car_cfg_servo_pin_inverted
+	global car_dev_motor1
+	global car_dev_motor2
+	global car_dev_servo_steering
+
+	car_motor_left = car_dev_motor1 if not car_cfg_motor_left_right_pin_inverted \
+						else car_dev_motor2
+	car_motor_right = car_dev_motor2 if not car_cfg_motor_left_right_pin_inverted \
+						else car_dev_motor1
+
+	car_dev_servo_steering.value = 0
+
+	car_motor_left.stop()
+	car_motor_right.forward(1.0)
+
+def update_car_movement_step_3():
+	global car_cfg_motor_left_right_pin_inverted
+	global car_cfg_motor_left_direction_pin_inverted
+	global car_cfg_servo_pin_inverted
+	global car_dev_motor1
+	global car_dev_motor2
+	global car_dev_servo_steering
+
+	car_motor_left = car_dev_motor1 if not car_cfg_motor_left_right_pin_inverted \
+						else car_dev_motor2
+	car_motor_right = car_dev_motor2 if not car_cfg_motor_left_right_pin_inverted \
+						else car_dev_motor1
+	car_motor_left_hw_forward = car_motor_left.forward if \
+									not car_cfg_motor_left_direction_pin_inverted \
+									else car_motor_left.backward
+
+	car_dev_servo_steering.value = 0
+
+	car_motor_left_hw_forward(1.0)
+	car_motor_right.stop()
+
+def update_car_movement_step_4():
+	global car_cfg_motor_left_right_pin_inverted
+	global car_cfg_motor_right_direction_pin_inverted
+	global car_cfg_servo_pin_inverted
+	global car_dev_motor1
+	global car_dev_motor2
+	global car_dev_servo_steering
+
+	car_motor_left = car_dev_motor1 if not car_cfg_motor_left_right_pin_inverted \
+						else car_dev_motor2
+	car_motor_right = car_dev_motor2 if not car_cfg_motor_left_right_pin_inverted \
+						else car_dev_motor1
+	car_motor_right_hw_forward = car_motor_right.forward if \
+									not car_cfg_motor_right_direction_pin_inverted \
+									else car_motor_right.backward
+
+	car_dev_servo_steering.value = 0
+
+	car_motor_left.stop()
+	car_motor_right_hw_forward(1.0)
+
+def update_car_movement_step_5():
+	global car_cfg_servo_pin_inverted
+	global car_dev_motor1
+	global car_dev_motor2
+	global car_dev_servo_steering
+
+	car_dev_motor1.stop()
+	car_dev_motor2.stop()
+	car_dev_servo_steering.value = (-1) if not car_cfg_servo_pin_inverted \
+								else (-1) * (-1)
 
 def asset_calibration_step(calibration_step):
 	if calibration_step >= 0.0 and calibration_step <= CALIBRATION_LAST_STEP:
